@@ -1,5 +1,9 @@
 # K3s High-Availability Cluster on AWS EC2
 
+**Student Name: NT Thombela**
+**Student Number: 230846181**
+
+
 This guide walks you through deploying a **K3s HA cluster with 3 master (server) nodes** on AWS EC2 `t3.large` instances using embedded etcd. All examples are AWS-native — no external datastore or load balancer is required to bootstrap the cluster.
 
 > For the full K3s documentation see <https://docs.k3s.io/>.
@@ -162,9 +166,9 @@ Add an entry for each node so they can resolve each other by hostname. Replace t
 
 ```sh
 sudo tee -a /etc/hosts <<EOF
-10.0.1.10  k3s-master-1
-10.0.1.11  k3s-master-2
-10.0.1.12  k3s-master-3
+172.31.46.154  k3s-master-1
+172.31.45.202  k3s-master-2
+172.31.35.156  k3s-master-3
 EOF
 ```
 
@@ -189,11 +193,11 @@ sudo mkdir -p /etc/rancher/k3s
 # Replace 1.2.3.4  with the public IP / Elastic IP of k3s-master-1
 sudo tee /etc/rancher/k3s/config.yaml <<EOF
 cluster-init: true
-node-ip: 10.0.1.10
-advertise-address: 10.0.1.10
+node-ip: 172.31.46.154
+advertise-address: 172.31.46.154
 tls-san:
-  - 10.0.1.10
-  - 1.2.3.4
+  - 172.31.46.154
+  - 98.88.155.180
   - k3s-master-1
 disable: [servicelb, traefik]
 EOF
@@ -238,17 +242,34 @@ sudo mkdir -p /etc/rancher/k3s
 
 # Example for k3s-master-2. Replace IPs and token with your values.
 sudo tee /etc/rancher/k3s/config.yaml <<EOF
-server: https://10.0.1.10:6443
-token: <token-from-master-1>
-node-ip: 10.0.1.11
-advertise-address: 10.0.1.11
+server: https://172.31.46.154:6443
+token:<token-from-master-1>
+node-ip: 172.31.45.202
+advertise-address: 172.31.45.202
 tls-san:
-  - 10.0.1.11
-  - 1.2.3.5
+  - 172.31.45.202
+  - 54.225.82.155
   - k3s-master-2
 disable: [servicelb, traefik]
 EOF
 ```
+
+### For k3s-master-3
+```sh
+sudo mkdir -p /etc/rancher/k3s
+
+sudo tee /etc/rancher/k3s/config.yaml <<EOF
+server: https://172.31.46.154:6443
+token: <token-from-master-1>
+node-ip: 172.31.35.156
+advertise-address: 172.31.35.156
+tls-san:
+  - 172.31.35.156
+  - 18.206.26.130
+  - k3s-master-3
+disable: [servicelb, traefik]
+EOF
+
 
 ### 4.2 — Install K3s as a server node
 
@@ -277,10 +298,12 @@ k3s-master-3   Ready    control-plane,etcd,master   1m    v1.30.x+k3s1
 
 ```sh
 # Copy the kubeconfig from k3s-master-1 to your local machine
-scp -i ~/.ssh/$KEY_NAME.pem ubuntu@<master-1-public-ip>:/etc/rancher/k3s/k3s.yaml ~/.kube/k3s.yaml
+mkdir -p ~/.kube
+scp -i ~/k3s-master-1.pem ubuntu@98.88.155.180:~/k3s.yaml ~/.kube/k3s.yaml
 
 # Update the server address to the public IP of a master node
-sed -i 's|https://127.0.0.1:6443|https://<master-1-public-ip>:6443|' ~/.kube/k3s.yaml
+sed -i 's|https://127.0.0.1:6443|https://98.88.155.180:6443|' ~/.kube/k3s.yaml
+
 
 # Use this kubeconfig
 export KUBECONFIG=~/.kube/k3s.yaml
