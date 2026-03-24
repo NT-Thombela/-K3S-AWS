@@ -292,7 +292,7 @@ k3s-master-2   Ready    control-plane,etcd,master   2m    v1.30.x+k3s1
 k3s-master-3   Ready    control-plane,etcd,master   1m    v1.30.x+k3s1
 ```
 ### All 3 Nodes Ready
-![kubectl get nodes](screenshots/nodes.png)
+![kubectl get nodes](screenshots/all-3-nodes-ready.png)
 ---
 
 ## Step 5: Configure kubectl Remotely (Optional)
@@ -330,7 +330,7 @@ Expected output: `welcome to my web app!`
 
 
 ### Test Application Deployed
-![web app](screenshots/webapp.png)
+![web app](screenshots/web-app.png)
 ---
 
 ## Step 7: Configure NGINX Ingress Controller
@@ -501,7 +501,7 @@ See `registries.yml` for the ECR configuration. The recommended approach on EC2 
 ## Evidence
 
 ### All 3 Nodes Ready
-![kubectl get nodes](screenshots/nodes.png)
+![kubectl get nodes](screenshots/all-3-nodes-ready.png)
 
 ### All Pods Running
 ![kubectl get pods](screenshots/pods.png)
