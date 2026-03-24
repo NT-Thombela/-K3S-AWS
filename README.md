@@ -291,7 +291,8 @@ k3s-master-1   Ready    control-plane,etcd,master   5m    v1.30.x+k3s1
 k3s-master-2   Ready    control-plane,etcd,master   2m    v1.30.x+k3s1
 k3s-master-3   Ready    control-plane,etcd,master   1m    v1.30.x+k3s1
 ```
-
+### All 3 Nodes Ready
+![kubectl get nodes](screenshots/nodes.png)
 ---
 
 ## Step 5: Configure kubectl Remotely (Optional)
@@ -327,6 +328,9 @@ curl http://<master-public-ip>:30080
 
 Expected output: `welcome to my web app!`
 
+
+### Test Application Deployed
+![web app](screenshots/webapp.png)
 ---
 
 ## Step 7: Configure NGINX Ingress Controller
@@ -492,3 +496,18 @@ aws ec2 modify-instance-metadata-options \
 ### Private Registry (Amazon ECR)
 
 See `registries.yml` for the ECR configuration. The recommended approach on EC2 is to attach the `AmazonEC2ContainerRegistryReadOnly` IAM policy to the instance profile — no static credentials are needed.
+
+
+## Evidence
+
+### All 3 Nodes Ready
+![kubectl get nodes](screenshots/nodes.png)
+
+### All Pods Running
+![kubectl get pods](screenshots/pods.png)
+
+### EC2 Instances on AWS Console
+![EC2 Instances](screenshots/ec2.png)
+
+### Test Application Deployed
+![web app](screenshots/webapp.png)
