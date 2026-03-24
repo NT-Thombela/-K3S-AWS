@@ -331,6 +331,7 @@ Expected output: `welcome to my web app!`
 
 ### Test Application Deployed
 ![web app](screenshots/web-app.png)
+![web app](screenshots/webApp.png)
 ---
 
 ## Step 7: Configure NGINX Ingress Controller
@@ -342,8 +343,7 @@ K3s can deploy Helm charts automatically by placing a manifest in `/var/lib/ranc
 sudo cp nginx-ingress.yml /var/lib/rancher/k3s/server/manifests/nginx-ingress.yaml
 
 # Verify the controller starts
-kubectl -n ingress-nginx get pods
-kubectl -n ingress-nginx get svc
+sudo kubectl -n ingress-nginx get pods
 ```
 
 The `LoadBalancer` service automatically provisions an AWS NLB. The NLB DNS name is shown in the `EXTERNAL-IP` column of `kubectl -n ingress-nginx get svc`.
@@ -511,3 +511,4 @@ See `registries.yml` for the ECR configuration. The recommended approach on EC2 
 
 ### Test Application Deployed
 ![web app](screenshots/webapp.png)
+![web app](screenshots/webApp.png)
