@@ -600,11 +600,6 @@ See `registries.yml` for the ECR configuration. The recommended approach on EC2 
 ## Worker Node — Agent Active and Running
 ![k3s agent running](screenshots/k3s-agent-running.png)
 
-## All 4 Nodes Ready (3 Masters + 1 Worker)
-![4 nodes ready](screenshots/4-nodes-ready.png)
-
-## HA Failover Test — Master-3 NotReady, Pods Still Running
-![HA failover](screenshots/ha-failover-pods.png)
 
 ## Troubleshooting — etcd Logs During Node Failure
 ![etcd logs](screenshots/etcd-logs.png)
@@ -614,9 +609,6 @@ See `registries.yml` for the ECR configuration. The recommended approach on EC2 
 
 ## Troubleshooting — Ping Tests and Node Recovery
 ![ping tests](screenshots/ping-tests.png)
-
-## Step 10 — K3s Uninstall on Master Nodes
-![uninstall masters](screenshots/uninstall-masters.png)
 
 ## Step 10 — K3s Uninstall on Worker Node
 ![uninstall worker](screenshots/uninstall-worker.png)
