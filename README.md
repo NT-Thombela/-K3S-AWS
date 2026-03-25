@@ -18,7 +18,59 @@ This guide walks you through deploying a **K3s HA cluster with 3 master (server)
 
 `t3.large` provides enough CPU and RAM to run the K3s control plane (etcd, API server, scheduler, controller-manager) alongside application workloads. All 3 nodes form an HA control plane backed by embedded etcd. Worker nodes can be added later (see [Step 9](#step-9-optional-adding-worker-nodes)).
 
+## Architecture Explanation
+
+The cluster uses a high-availability control plane with three master nodes. Each node runs core Kubernetes components including the API server, scheduler, controller manager, and etcd.
+
+The API server acts as the central communication point for all cluster operations. etcd stores the cluster state and ensures consistency across nodes. The scheduler assigns workloads to nodes based on available resources.
+
+Flannel is used as the Container Network Interface (CNI) to enable communication between pods across nodes using VXLAN networking.
+
+This architecture provides fault tolerance. If one master node fails, the remaining nodes continue to manage the cluster without downtime.
+
+## What is K3s and Why It Is Used
+
+K3s is a certified, lightweight Kubernetes distribution developed by Rancher Labs. It packages the full
+Kubernetes control plane into a single binary under 100MB, embedding etcd, containerd, CoreDNS, Flannel CNI, and a local storage provisioner. It is ideal for edge computing, IoT, and cloud deployments where resource efficiency matters.
+
+
+It is used because:
+- It has a small footprint compared to standard Kubernetes
+- It is easy to install and manage
+- It includes built-in components like containerd, Flannel, and a storage provisioner
+- It is suitable for cloud-native and edge deployments such as 5G systems
+
 ---
+
+### Key Components
+•	etcd: Distributed key-value store holding all cluster state. 3 masters provide quorum — 1 master can fail without cluster disruption.
+•	API Server: Entry point for all kubectl commands and internal component communication.
+•	Flannel CNI: Overlay network (VXLAN) enabling pod-to-pod communication across nodes.
+•	NGINX Ingress: Replaces default Traefik. Exposes an AWS NLB as the external entry point.
+•	local-path-provisioner: Dynamically provisions hostPath PersistentVolumes for storage.
+•	containerd: Embedded container runtime — no Docker required.
+
+
+### Cluster Architecture
+```
+[ k3s-master-1 ] 172.31.46.154 ── etcd ──┐
+[ k3s-master-2 ] 172.31.45.202 ── etcd ──┼── K3s HA Control Plane
+[ k3s-master-3 ] 172.31.35.156 ── etcd ──┘
+```
+
+
+## Security Considerations
+
+- Security group rules were configured to allow only required ports:
+  - 22 (SSH)
+  - 6443 (Kubernetes API)
+  - 2379–2380 (etcd)
+  - 10250 (Kubelet)
+  - 8472/UDP (Flannel VXLAN)
+- Sensitive data such as SSH keys and tokens were not committed to the repository
+- Private IPs were used for inter-node communication
+---
+
 
 ## Prerequisites
 
@@ -270,6 +322,8 @@ tls-san:
 disable: [servicelb, traefik]
 EOF
 
+curl -sfL https://get.k3s.io | sh -s - server
+```
 
 ### 4.2 — Install K3s as a server node
 
@@ -292,6 +346,8 @@ k3s-master-2   Ready    control-plane,etcd,master   2m    v1.30.x+k3s1
 k3s-master-3   Ready    control-plane,etcd,master   1m    v1.30.x+k3s1
 ```
 ### All 3 Nodes Ready
+This confirms that all master nodes successfully joined the cluster and are in a Ready state.
+
 ![kubectl get nodes](screenshots/all-3-nodes-ready.png)
 ---
 
@@ -323,7 +379,7 @@ kubectl apply -f web-app.yml
 kubectl get pods,svc
 
 # Access the app — use the public IP of any master node and the NodePort
-curl http://<master-public-ip>:30080
+curl http://98.88.155.180:30080
 ```
 
 Expected output: `welcome to my web app!`
@@ -413,13 +469,34 @@ parameters:
 
 To add a dedicated worker (agent) node, launch an additional EC2 instance (any type) in the same security group and run:
 
+### 9.1 — Launch a Worker EC2 Instance
+
+Launch a new EC2 instance from the AWS Console:
+- **Name:** `k3s-worker-1`
+- **AMI:** Ubuntu Server 22.04 LTS
+- **Instance type:** `t3.large`
+- **Key pair:** same key pair used for the master nodes
+- **Security group:** Create a new security group with the following inbound rules:
+
+| Type | Protocol | Port | Source |
+|------|----------|------|--------|
+| SSH | TCP | 22 | 0.0.0.0/0 |
+| Custom TCP | TCP | 6443 | 0.0.0.0/0 |
+
+## 9.2 — Allocate and Associate an Elastic IP
+
+1. Go to **EC2 → Elastic IPs → Allocate Elastic IP address**
+2. Select the new EIP → **Actions → Associate Elastic IP address**
+3. Select `k3s-worker-1` and click **Associate**
+
+
 ```sh
 # On the new worker node
 sudo mkdir -p /etc/rancher/k3s
 sudo tee /etc/rancher/k3s/config.yaml <<EOF
-server: https://10.0.1.10:6443
+server: https://172.31.46.154:6443
 token: <token-from-master-1>
-node-ip: <worker-private-ip>
+node-ip: 172.31.89.63
 EOF
 
 curl -sfL https://get.k3s.io | sh -s - agent
@@ -500,15 +577,65 @@ See `registries.yml` for the ECR configuration. The recommended approach on EC2 
 
 ## Evidence
 
-### All 3 Nodes Ready
+## All 3 Nodes Ready
 ![kubectl get nodes](screenshots/all-3-nodes-ready.png)
 
-### All Pods Running
+## All Pods Running
 ![kubectl get pods](screenshots/pods.png)
 
-### EC2 Instances on AWS Console
+## EC2 Instances on AWS Console
 ![EC2 Instances](screenshots/ec2.png)
 
-### Test Application Deployed
+## Test Application Deployed
 ![web app](screenshots/webapp.png)
 ![web app](screenshots/webApp.png)
+
+## Storage — PVC Bound and Pod Running
+![PVC and PV](screenshots/pvc-pv.png)
+![volume-test pod](screenshots/volume-test.png)
+
+## Worker Node — K3s Agent Installing
+![k3s agent install](screenshots/k3s-agent-install.png)
+
+## Worker Node — Agent Active and Running
+![k3s agent running](screenshots/k3s-agent-running.png)
+
+## All 4 Nodes Ready (3 Masters + 1 Worker)
+![4 nodes ready](screenshots/4-nodes-ready.png)
+
+## HA Failover Test — Master-3 NotReady, Pods Still Running
+![HA failover](screenshots/ha-failover-pods.png)
+
+## Troubleshooting — etcd Logs During Node Failure
+![etcd logs](screenshots/etcd-logs.png)
+
+## Troubleshooting — etcd Snapshot List
+![etcd snapshots](screenshots/etcd-snapshots.png)
+
+## Troubleshooting — Ping Tests and Node Recovery
+![ping tests](screenshots/ping-tests.png)
+
+## Step 10 — K3s Uninstall on Master Nodes
+![uninstall masters](screenshots/uninstall-masters.png)
+
+## Step 10 — K3s Uninstall on Worker Node
+![uninstall worker](screenshots/uninstall-worker.png)
+
+
+## Reflection
+Getting hands-on with K3s on AWS shed a different light on me about Kubernetes. I now understand what a control plane does. The API server receives every command, etcd stores the cluster state, and the scheduler decides where workloads run. Seeing this operate across three EC2 instances made the concepts click in a way that reading about them never could. I also learned how much networking matters. I initially thought launching servers and installing software would be simple, but getting three machines to trust and communicate required careful configuration of ports, protocols, and security rules.
+
+The deployment did not go smoothly at first, which was the most valuable part. My first challenge was launching all three EC2 instances manually instead of using the CLI. Each got its own security group, which blocked communication. I resolved this by adding cross-security-group rules using the AWS CLI. Another issue was stale TLS certificates on master-2 and master-3 from previous installations. K3s refused to start until I deleted the certificate directories and reinstalled. Public IP addresses changing after a restart was another problem, fixed by allocating Elastic IPs for each master.
+
+Testing the high-availability cluster was the most rewarding. Stopping one master node showed that the cluster kept running and all pods remained active. This made the value of HA clear. In real networks like 5G, critical functions must remain available even if infrastructure fails. Seeing the cluster maintain least made HA tangible.
+
+This project also connected theoretical concepts like virtualization and containerization to real practice. Containers allow workloads to be packaged and deployed consistently, while Kubernetes orchestrates them across multiple nodes. This hands-on experience deepened my understanding of cloud-native systems and showed how infrastructure, software, and networking work together. Overall, the assignment was challenging but rewarding, giving me practical skills I can apply in future cloud and networking projects.
+
+## K3s and 5G Cloud Native Concepts
+5G networks are no longer built on dedicated hardware they run as software on cloud infrastructure. Network functions like the AMF, SMF, and UPF are containerised microservices that need to be orchestrated, scaled, and recovered automatically. K3s brings this capability to edge locations and resource constrained nodes, making it a strong fit for Multi Access Edge Computing deployments.
+The high availability setup in this assignment three control plane nodes backed by embedded etcd mirrors what production 5G deployments require for carrier grade resilience.
+
+## Virtualisation and Containerisation for Scalable Services
+Virtualisation gave us the ability to run multiple isolated environments on one physical machine. Containerisation made those environments even lighter and faster to spin up. Kubernetes ties it all together by automating how containers are deployed, scaled, and recovered across a cluster.
+In this assignment, deploying three nginx replicas showed this in action Kubernetes spread the pods across nodes automatically, and the workload would continue running if one node failed.
+This assignment gave me more than Kubernetes knowledge. It taught me how to debug real infrastructure problems, read logs, trace connectivity issues, and iterate until things work.
